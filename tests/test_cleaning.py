@@ -109,6 +109,24 @@ def test_work_orders_spreadsheet_error_flagged(work_orders):
     assert flagged.sum() >= 1
 
 
+def test_tools_coerce_bad_arg_types(monkeypatch):
+    """The model occasionally sends numbers where a string is expected; tools must
+    not raise 'float/int object has no attribute lower/strip'."""
+    monkeypatch.setenv("SKY_DATA_SOURCE", "csv")
+    from monday_bi import tools
+
+    for name, args in [
+        ("compute_metric", {"metric": "pipeline_health", "quarter": 2026}),
+        ("compute_metric", {"metric": "revenue_summary", "sector": 0}),
+        ("query_dataframe", {"board": "deals", "expression": 42}),
+        ("search_column_values", {"board": "deals", "column": "sector", "query": 123}),
+        ("get_data_quality_report", {"board": None}),
+    ]:
+        out = tools.dispatch(name, args)
+        assert "has no attribute 'lower'" not in out
+        assert "has no attribute 'strip'" not in out
+
+
 def test_quality_report_shape(deals, work_orders):
     for df, label in [(deals, "deals"), (work_orders, "work_orders")]:
         rep = build_report(df, label)

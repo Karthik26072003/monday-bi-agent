@@ -27,7 +27,8 @@ _BOARDS = {"deals": service.get_deals, "work_orders": service.get_work_orders}
 _MAX_ROWS_RETURNED = 60
 
 
-def _df(board: str) -> pd.DataFrame:
+def _df(board) -> pd.DataFrame:
+    board = str(board).strip().lower()
     if board not in _BOARDS:
         raise ValueError(f"Unknown board '{board}'. Use one of: {list(_BOARDS)}")
     return _BOARDS[board]()
@@ -159,14 +160,26 @@ def _h_get_board_schema(board: str) -> dict[str, Any]:
     }
 
 
-def _h_get_data_quality_report(board: str = "both") -> dict[str, Any]:
+def _h_get_data_quality_report(board="both") -> dict[str, Any]:
+    board = str(board).strip().lower()
     reports = service.get_quality_reports()
     if board in ("deals", "work_orders"):
         return reports[board]
     return reports
 
 
-def _h_compute_metric(metric: str, sector: str | None = None, quarter: str | None = None) -> dict[str, Any]:
+def _opt_str(v) -> str | None:
+    """Models sometimes send numbers/bools for string params - coerce safely."""
+    if v is None or v == "":
+        return None
+    return str(v)
+
+
+def _h_compute_metric(metric: str, sector=None, quarter=None) -> dict[str, Any]:
+    metric = str(metric)
+    sector, quarter = _opt_str(sector), _opt_str(quarter)
+    if metric not in metrics_mod.METRICS:
+        return {"error": f"Unknown metric '{metric}'.", "available": list(metrics_mod.METRICS)}
     fn = metrics_mod.METRICS[metric]
     if metric == "sector_performance":
         return fn(service.get_deals(), service.get_work_orders())
@@ -178,27 +191,28 @@ def _h_compute_metric(metric: str, sector: str | None = None, quarter: str | Non
     return fn(service.get_deals(), sector=sector, quarter=quarter)
 
 
-def _h_leadership_brief(period: str | None = None) -> dict[str, Any]:
-    return leadership_brief(service.get_deals(), service.get_work_orders(), period)
+def _h_leadership_brief(period=None) -> dict[str, Any]:
+    return leadership_brief(service.get_deals(), service.get_work_orders(), _opt_str(period))
 
 
-def _h_search_column_values(board: str, column: str, query: str = "") -> dict[str, Any]:
+def _h_search_column_values(board: str, column, query="") -> dict[str, Any]:
+    column, query = str(column), str(query or "")
     df = _df(board)
     if column not in df.columns:
         return {"error": f"No column '{column}' on {board}.", "available_columns": list(df.columns)}
     if "is_valid" in df.columns:
         df = df[df["is_valid"]]
-    s = df[column]
-    counts = s.dropna().astype(str).value_counts()
-    q = (query or "").lower()
-    matches = [{"value": v, "rows": int(n)} for v, n in counts.items() if q in v.lower()]
+    counts = df[column].dropna().astype(str).value_counts()
+    q = query.lower()
+    matches = [{"value": str(v), "rows": int(n)} for v, n in counts.items() if q in str(v).lower()]
     return {"board": board, "column": column, "query": query, "matches": matches[:50]}
 
 
 _SAFE_GLOBALS = {"__builtins__": {}, "pd": pd, "np": np}
 
 
-def _h_query_dataframe(board: str, expression: str, purpose: str | None = None) -> dict[str, Any]:
+def _h_query_dataframe(board: str, expression, purpose=None) -> dict[str, Any]:
+    expression, purpose = str(expression), _opt_str(purpose)
     full = _df(board)
     d = default_analysis_frame(full, board).copy()
     d_all = full.copy()

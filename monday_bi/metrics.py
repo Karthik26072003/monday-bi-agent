@@ -22,19 +22,23 @@ def _round(x) -> float | None:
     return round(float(x), 2)
 
 
-def _sector_filter(df: pd.DataFrame, sector: str | None) -> pd.DataFrame:
-    if not sector:
+def _sector_filter(df: pd.DataFrame, sector) -> pd.DataFrame:
+    if sector is None or sector == "":
         return df
-    s = sector.strip().lower()
-    if s in {"energy", "energy sector", "power", "power & energy"}:
+    s = str(sector).strip().lower()
+    if s in {"", "all", "any"}:
+        return df
+    if s in {"energy", "energy sector", "power", "power & energy", "renewables + powerline"}:
         return df[df["sector"].isin(ENERGY_SECTORS)]
-    return df[df["sector"].str.lower() == s]
+    return df[df["sector"].astype(str).str.lower() == s]
 
 
-def _quarter_filter(df: pd.DataFrame, quarter: str | None, col: str) -> pd.DataFrame:
-    if not quarter:
+def _quarter_filter(df: pd.DataFrame, quarter, col: str) -> pd.DataFrame:
+    if quarter is None or quarter == "":
         return df
-    q = quarter.strip().upper().replace("-", " ")
+    q = str(quarter).strip().upper().replace("-", " ")
+    if q in {"", "ALL", "ALL TIME", "ANY"}:
+        return df
     fy_col = col.replace("_date", "_fy_quarter") if col.endswith("_date") else f"{col}_fy_quarter"
     cal_col = col.replace("_date", "_cal_quarter") if col.endswith("_date") else f"{col}_cal_quarter"
     masks = []
