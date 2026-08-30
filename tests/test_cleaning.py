@@ -109,6 +109,43 @@ def test_work_orders_spreadsheet_error_flagged(work_orders):
     assert flagged.sum() >= 1
 
 
+def test_clean_deals_survives_nan_cells_and_item_name_fallback():
+    """Mirrors the monday.com shape: no 'Deal Name' column (it's the item name),
+    and NaN cells instead of '' - must not raise and must recover the name."""
+    raw = pd.DataFrame({
+        "__item_id": ["1", "2"],
+        "__item_name": ["Naruto", "Sasuke"],
+        "Deal Status": [np.nan, "Open"],
+        "Deal Stage": [np.nan, "B. Sales Qualified Leads"],
+        "Masked Deal value": [np.nan, "1000"],
+        "Sector/service": ["Renewables", np.nan],
+        "Created Date": [np.nan, "2025-11-27"],
+        "Tentative Close Date": [np.nan, np.nan],
+        "Close Date (A)": [np.nan, np.nan],
+        "Closure Probability": [np.nan, "High"],
+        "Owner code": [np.nan, "OWNER_001"],
+        "Client Code": [np.nan, np.nan],
+        "Product deal": [np.nan, np.nan],
+    })
+    out = clean_deals(raw)
+    assert list(out["deal_name"]) == ["Naruto", "Sasuke"]
+    assert out["status"].isin(["Open", "Won", "Lost", "On Hold", "Unknown"]).all()
+
+
+def test_clean_work_orders_serial_from_item_name():
+    raw = pd.DataFrame({
+        "__item_id": ["1"],
+        "__item_name": ["SDPLDEAL-075"],
+        "Deal name masked": ["Scooby-Doo"],
+        "Execution Status": [np.nan],
+        "Sector": [np.nan],
+        "Amount in Rupees (Excl of GST) (Masked)": [np.nan],
+    })
+    out = clean_work_orders(raw)
+    assert list(out["serial"]) == ["SDPLDEAL-075"]
+    assert out["is_valid"].all()
+
+
 def test_tools_coerce_bad_arg_types(monkeypatch):
     """The model occasionally sends numbers where a string is expected; tools must
     not raise 'float/int object has no attribute lower/strip'."""

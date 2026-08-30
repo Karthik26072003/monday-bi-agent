@@ -98,7 +98,17 @@ _BILLING_STATUS_CANON = {
 
 # --------------------------------------------------------------------- scalar parsers
 def is_nullish(v) -> bool:
-    return v is None or (isinstance(v, float) and np.isnan(v)) or str(v).strip().lower() in _NULLISH
+    try:
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return True
+    except (TypeError, ValueError):
+        pass
+    return str(v).strip().lower() in _NULLISH
+
+
+def as_text(v) -> str:
+    """Null/NaN/anything -> a safe string. Use before .lower()/.strip() on raw cells."""
+    return "" if is_nullish(v) else str(v)
 
 
 def clean_text(v) -> str | None:
@@ -200,10 +210,15 @@ def clean_deals(raw: pd.DataFrame) -> pd.DataFrame:
     df = raw.copy()
 
     def col(name: str) -> pd.Series:
-        return df[name] if name in df.columns else pd.Series([None] * len(df), index=df.index)
+        s = df[name] if name in df.columns else pd.Series([None] * len(df), index=df.index)
+        return s.astype(object).where(s.notna(), None)  # NaN -> None, so .map always sees None
 
     out = pd.DataFrame(index=df.index)
+    # monday stores the deal name as the item name, not a column, when imported via
+    # our script - so fall back to __item_name.
     out["deal_name"] = col("Deal Name").map(clean_text)
+    out["deal_name"] = out["deal_name"].where(out["deal_name"].notna(),
+                                              col("__item_name").map(clean_text))
     out["owner_code"] = col("Owner code").map(clean_text)
     out["client_code"] = col("Client Code").map(clean_text)
 
@@ -213,12 +228,13 @@ def clean_deals(raw: pd.DataFrame) -> pd.DataFrame:
 
     stage_info = out["stage_code"].map(lambda c: _STAGE_MAP.get(c))
     out["stage"] = [
-        (info[0] if info else (raw_ or "Unknown"))
+        (info[0] if info else (as_text(raw_) or "Unknown"))
         for info, raw_ in zip(stage_info, out["stage_raw"])
     ]
 
     def resolve_status(row_status, info, stage_raw):
-        s = (row_status or "").lower()
+        s = as_text(row_status).lower()
+        stage_raw = as_text(stage_raw)
         if info:
             _, won, lost, is_open = info
             if won:
@@ -329,12 +345,16 @@ def clean_work_orders(raw: pd.DataFrame) -> pd.DataFrame:
     df = raw.copy()
 
     def col(name: str) -> pd.Series:
-        return df[name] if name in df.columns else pd.Series([None] * len(df), index=df.index)
+        s = df[name] if name in df.columns else pd.Series([None] * len(df), index=df.index)
+        return s.astype(object).where(s.notna(), None)
 
     out = pd.DataFrame(index=df.index)
     out["deal_name"] = col("Deal name masked").map(clean_text)
     out["customer_code"] = col("Customer Name Code").map(clean_text)
+    # Serial # is the monday item name when imported via our script.
     out["serial"] = col("Serial #").map(clean_text)
+    out["serial"] = out["serial"].where(out["serial"].notna(),
+                                        col("__item_name").map(clean_text))
     out["owner_code"] = col("BD/KAM Personnel code").map(clean_text)
 
     out["nature_of_work"] = col("Nature of Work").map(clean_text)
