@@ -26,6 +26,11 @@ with st.sidebar:
     health = service.health_check()
     ok = health.get("ok")
     (st.success if ok else st.error)(health.get("monday", "unknown"))
+    if not ok and health.get("error"):
+        st.error(health["error"])
+        if health.get("traceback"):
+            with st.expander("Traceback"):
+                st.code(health["traceback"])
     if health.get("data_source") == "csv":
         st.warning("Running in **dev CSV mode** - not live monday data.")
     cols = st.columns(2)

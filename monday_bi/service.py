@@ -20,28 +20,13 @@ from monday_bi.quality import build_report
 _MEM: dict[str, tuple[float, Any]] = {}
 
 
-def _in_streamlit_runtime() -> bool:
-    try:
-        from streamlit.runtime import exists
-
-        return exists()
-    except Exception:
-        return False
-
-
 def _cache(fn):
-    """Use st.cache_data under a live Streamlit runtime; a plain TTL cache otherwise
-    (tests, the import script, ad-hoc scripts) so there's no console noise."""
-    st_cached = None
+    """Process-wide TTL cache. Deliberately not st.cache_data: it serialises return
+    values (parquet/pickle) and trips over the list-valued `dq_flags` column on some
+    Streamlit versions. This dict lives for the life of the server process, so it is
+    still shared across sessions and reruns."""
 
     def wrapper(*args, **kwargs):
-        nonlocal st_cached
-        if _in_streamlit_runtime():
-            if st_cached is None:
-                import streamlit as st
-
-                st_cached = st.cache_data(ttl=config.CACHE_TTL_SECONDS, show_spinner=False)(fn)
-            return st_cached(*args, **kwargs)
         key = f"{fn.__name__}:{args}:{kwargs}"
         hit = _MEM.get(key)
         if hit and time.time() - hit[0] < config.CACHE_TTL_SECONDS:
@@ -112,16 +97,13 @@ def health_check() -> dict[str, Any]:
         info["work_orders_rows"] = len(w)
         info["ok"] = True
     except Exception as exc:  # noqa: BLE001 - surface anything to the UI
+        import traceback
+
         info["ok"] = False
-        info["error"] = str(exc)
+        info["error"] = f"{type(exc).__name__}: {exc}"
+        info["traceback"] = traceback.format_exc()
     return info
 
 
 def clear_cache() -> None:
     _MEM.clear()
-    try:
-        import streamlit as st
-
-        st.cache_data.clear()
-    except Exception:
-        pass
