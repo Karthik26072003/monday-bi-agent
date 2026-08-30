@@ -1,0 +1,13 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.pytest_cache/
+.DS_Store
+*.xlsx
+# original source exports (canonical copies live in sample_data/)
+Deal funnel Data.xlsx - Deal tracker.csv
+Work_Order_Tracker Data.xlsx - work order tracker.csv
+
