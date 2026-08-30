@@ -28,6 +28,9 @@ customer codes differ between boards. Treat Deals as "sales" and Work Orders as
   them as-is and lean on comparisons/shares, not absolute claims.
 - "This quarter" is ambiguous. The company is India-based (fiscal year Apr-Mar).
   Default to the **fiscal** quarter but say which basis you used, or ask if it matters.
+  Fiscal-year labels: FYnn runs Apr(nn-1) to Mar(nn) - so FY26 = Apr 2025 to Mar 2026,
+  FY26 Q1 = Apr-Jun 2025, FY26 Q3 = Oct-Dec 2025. The tools compute the label; don't
+  restate the month range unless you're sure of it.
 - There is no "Energy" sector in the data. It maps to **Renewables + Powerline** -
   confirm that interpretation with the user on first use.
 

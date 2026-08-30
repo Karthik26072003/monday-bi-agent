@@ -7,7 +7,7 @@ cleans the (deliberately messy) data in a deterministic layer, and uses an LLM
 (through a provider‑agnostic OpenAI‑compatible API) with a set of read‑only BI
 tools to interpret questions, run the analysis, and explain the result with caveats.
 
-**Live prototype:** _<paste your Streamlit Cloud URL here>_
+**Live prototype:** https://monday-bi-agent-ybzbbahqfgwfjdtvaln8dm.streamlit.app
 
 ---
 

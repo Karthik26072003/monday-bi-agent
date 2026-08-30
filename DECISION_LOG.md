@@ -1,5 +1,8 @@
 # Decision Log — Skylark BI Agent
 
+**Live prototype:** https://monday-bi-agent-ybzbbahqfgwfjdtvaln8dm.streamlit.app
+· **Source:** https://github.com/Karthik26072003/monday-bi-agent
+
 ## Key assumptions
 
 **Data semantics**
