@@ -17,7 +17,7 @@ from dateutil import parser as dtparser
 
 # --------------------------------------------------------------------- constants
 _NULLISH = {
-    "", "na", "n/a", "none", "nan", "null", "-", "--", "tbd", "tba", "pending",
+    "", "na", "n/a", "none", "nan", "null", "<na>", "-", "--", "tbd", "tba", "pending",
     "not available", "#n/a", "#value!", "#ref!", "#div/0!",
 }
 
@@ -210,8 +210,10 @@ def clean_deals(raw: pd.DataFrame) -> pd.DataFrame:
     df = raw.copy()
 
     def col(name: str) -> pd.Series:
-        s = df[name] if name in df.columns else pd.Series([None] * len(df), index=df.index)
-        return s.astype(object).where(s.notna(), None)  # NaN -> None, so .map always sees None
+        if name in df.columns:
+            # loader guarantees plain-object str cells; be defensive anyway
+            return df[name].astype(object)
+        return pd.Series([None] * len(df), index=df.index, dtype=object)
 
     out = pd.DataFrame(index=df.index)
     # monday stores the deal name as the item name, not a column, when imported via
@@ -264,10 +266,8 @@ def clean_deals(raw: pd.DataFrame) -> pd.DataFrame:
     out["is_open"] = out["status"].eq("Open")
 
     prob = col("Closure Probability").map(clean_text)
-    out["probability_band"] = prob.map(lambda p: p.title() if p else None)
-    out["probability_pct"] = prob.map(
-        lambda p: _PROBABILITY_PCT.get((p or "").lower(), np.nan)
-    )
+    out["probability_band"] = prob.map(lambda p: p.title() if isinstance(p, str) and p else None)
+    out["probability_pct"] = prob.map(lambda p: _PROBABILITY_PCT.get(as_text(p).lower(), np.nan))
 
     out["deal_value"] = col("Masked Deal value").map(parse_money)
 

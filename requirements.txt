@@ -1,7 +1,7 @@
 streamlit>=1.40
 openai>=1.40
-pandas>=2.2
-numpy>=1.26
+pandas>=2.2,<3.0
+numpy>=1.26,<3.0
 requests>=2.32
 python-dateutil>=2.9
 pytest>=8.0
